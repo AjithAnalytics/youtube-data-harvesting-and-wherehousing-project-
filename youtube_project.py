@@ -214,6 +214,12 @@ elif option=="2.Migrating mongoDB data into MYSQL":
 
     # Extract channeldata from the MongoDB document
     channel_yt_Data= channel_info["channel_Data"]
+    #datatype convertion 
+
+    channel_yt_Data['subscription_count']=pd.to_numeric(channel_yt_Data['subscription_count'])
+    channel_yt_Data["channel_views"]=pd.to_numeric(channel_yt_Data["channel_views"])
+    channel_yt_Data["Total_videos"]=pd.to_numeric(channel_yt_Data["Total_videos"])
+
     channel_id = channel_yt_Data["channel_id"]
     channel_name = channel_yt_Data["channel_name"]
     subscription_count = channel_yt_Data['subscription_count']
@@ -257,7 +263,6 @@ elif option=="2.Migrating mongoDB data into MYSQL":
 
     #extract video_data from the mongoDB document
     video_yt_data=channel_info['Video_Data']
-
     #create the video table in database
     video_query="""CREATE TABLE IF NOT EXISTS video (video_Id VARCHAR(50) PRIMARY KEY,
                 Title VARCHAR(255),published_date DATETIME ,
@@ -275,8 +280,8 @@ elif option=="2.Migrating mongoDB data into MYSQL":
                             comment_count,duration, thumbnail,
                             caption_status,playlist_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,'{playlist_id}')"""
             
-            values = (row['Video_Id'], row['Title'], row['published_date'],row['view_count'],
-                    row['like_count'],row['favorite_count'],row['comment_count'],row['duration'],
+            values = (row['Video_Id'], row['Title'],pd.to_datetime(row['published_date']),int(row['view_count']),
+                    int(row['like_count']),int(row['favorite_count']),int(row['comment_count']),row['duration'],
                     row['thumbnail'],row['caption_status'])
             mycursor.execute(video_insert_query, values)
             mydb.commit()
@@ -296,7 +301,7 @@ elif option=="2.Migrating mongoDB data into MYSQL":
             video_id VARCHAR(50),
             FOREIGN KEY (video_id) REFERENCES video(video_Id)
         )"""
-
+    mycursor.execute(comment_query)
     try:
     # Insert data into comment table in database
         for row in comment_yt_Data:
@@ -322,7 +327,7 @@ elif option=="3.SQL queries":
                              "5.Which videos have the highest number of likes, and what are their corresponding channel names?",
                              "6.What is the total number of likes and dislikes for each video, and what are their corresponding video names?",
                              "7.What is the total number of views for each channel, and what are their corresponding channel names?",
-                             "8.What are the names of all the channels that have published videos in the year2023",
+                             "8.What are the names of all the channels that have published videos in the year2022",
                              "9.What is the average duration of all videos in each channel, and what are their corresponding channel names?",
                              "10.Which videos have the highest number of comments, and what are their corresponding channel names?"
                              ))
@@ -394,12 +399,12 @@ elif option=="3.SQL queries":
         Q7=pd.DataFrame(out,columns=[i[0] for i in mycursor.description])
         st.table(Q7)
 
-    elif questions== "8.What are the names of all the channels that have published videos in the year2023":
-        mycursor.execute("""SELECT channel.channel_name,video.video_Id,video.Title,video.published_date
-                    FROM channel
-                    INNER JOIN playlist ON channel.channel_id = playlist.channel_Id
-                    INNER JOIN video ON video.playlist_id = playlist.playlist_id
-                    WHERE YEAR(video.published_date = 2023)""")
+    elif questions== "8.What are the names of all the channels that have published videos in the year2022":
+        mycursor.execute("""SELECT DISTINCT channel.channel_name
+                        FROM channel 
+                        JOIN playlist  ON channel.channel_id = playlist.channel_id
+                        JOIN video  ON playlist.playlist_id = video.playlist_id
+                        WHERE YEAR(video.published_date) = 2022;""")
         out=mycursor.fetchall()
         Q8=pd.DataFrame(out,columns=[i[0] for i in mycursor.description])
         st.table(Q8)  
